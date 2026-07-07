@@ -1,0 +1,5 @@
+<div class="lang-switch" role="group" aria-label="Language">
+  <button [class.active]="language.lang() === 'ru'" (click)="setLang('ru')">RU</button>
+  <button [class.active]="language.lang() === 'en'" (click)="setLang('en')">EN</button>
+</div>
+<router-outlet />
