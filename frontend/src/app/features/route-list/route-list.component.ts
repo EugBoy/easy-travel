@@ -13,78 +13,77 @@ const STATUS_LABEL: Record<string, string> = {
   imports: [RouterLink],
   template: `
     <div class="page">
-      <header class="header">
-        <div>
+      <div class="screen-card">
+        <div class="card-top">
+          <div class="eyebrow">Планировщик поездок</div>
           <h1>Мои маршруты</h1>
-          <p class="text-muted">Спланируйте поездку по городам и достопримечательностям</p>
+          <p class="subtitle text-soft">Спланируйте поездку по городам и достопримечательностям</p>
         </div>
-        <a class="btn btn-primary" routerLink="/routes/new">+ Новый маршрут</a>
-      </header>
 
-      @if (storage.routes().length === 0) {
-        <div class="card empty">
-          <p class="text-muted">Пока нет ни одного маршрута.</p>
-          <a class="btn btn-primary" routerLink="/routes/new">Создать первый маршрут</a>
-        </div>
-      } @else {
-        <div class="list">
-          @for (route of storage.routes(); track route.id) {
-            <div class="card route-card">
-              <div class="route-info">
-                <h3>{{ route.title }}</h3>
-                <p class="text-muted cities">{{ cityList(route.segments) }}</p>
-              </div>
-              <div class="route-meta">
-                <span class="badge" [class.badge-success]="route.status === 'plan_generated'">
-                  {{ statusLabel(route.status) }}
-                </span>
-                <div class="actions">
-                  <button class="btn" (click)="open(route)">Открыть</button>
-                  <button class="btn btn-danger" (click)="remove(route.id)">Удалить</button>
+        <div class="card-body">
+          @if (storage.routes().length === 0) {
+            <div class="empty">
+              <p class="text-muted">Пока нет ни одного маршрута.</p>
+            </div>
+          } @else {
+            <div class="list">
+              @for (route of storage.routes(); track route.id) {
+                <div class="route-row">
+                  <div class="dot"></div>
+                  <div class="route-info">
+                    <div class="route-title">{{ route.title }}</div>
+                    <div class="text-muted cities">{{ cityList(route.segments) }}</div>
+                  </div>
+                  <span class="badge" [class.badge-accent]="route.status === 'plan_generated'">
+                    {{ statusLabel(route.status) }}
+                  </span>
+                  <div class="actions">
+                    <button class="btn" (click)="open(route)">Открыть</button>
+                    <button class="icon-btn icon-btn-danger" (click)="remove(route.id)" aria-label="Удалить">✕</button>
+                  </div>
                 </div>
-              </div>
+              }
             </div>
           }
         </div>
-      }
+
+        <div class="card-footer">
+          <div class="text-muted footer-count">{{ storage.routes().length }} маршрут(ов)</div>
+          <a class="btn btn-primary" routerLink="/routes/new">+ Новый маршрут</a>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
-    .header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 32px;
-      gap: 16px;
-    }
-    .header p { margin-top: 4px; }
-    .empty {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .route-card {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    .cities { margin-top: 4px; font-size: 14px; }
-    .route-meta {
+    .card-top { padding: 40px 48px 8px; }
+    h1 { margin: 10px 0 6px; font-size: 34px; font-weight: 600; letter-spacing: -0.01em; }
+    .subtitle { margin: 0 0 32px; font-size: 15px; line-height: 1.5; max-width: 560px; }
+    .card-body { padding: 0 48px 40px; }
+    .empty { padding: 32px 0; }
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .route-row {
       display: flex;
       align-items: center;
       gap: 16px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
     }
-    .actions {
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
+    .route-info { flex: 1; min-width: 0; }
+    .route-title { font-size: 15px; font-weight: 600; }
+    .cities { margin-top: 4px; font-size: 13px; }
+    .actions { display: flex; align-items: center; gap: 8px; }
+    .card-footer {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 48px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-page);
     }
+    .footer-count { font-size: 13px; }
   `],
 })
 export class RouteListComponent {

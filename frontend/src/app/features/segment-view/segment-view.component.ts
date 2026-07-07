@@ -26,71 +26,78 @@ const DEFAULT_ICON = L.divIcon({
   template: `
     @if (route(); as r) {
       @if (segment(); as seg) {
-        <div class="page">
-          <header class="header">
-            <a [routerLink]="['/routes']" class="text-muted back">← К списку маршрутов</a>
-            <div class="title-row">
-              <div>
-                <h1>{{ seg.city }}</h1>
-                <p class="text-muted">{{ seg.arrivalDate }} — {{ seg.departureDate }}</p>
-              </div>
-              <span class="badge">Отрезок {{ segmentIndex() + 1 }} из {{ r.segments.length }}</span>
-            </div>
-          </header>
+        <div class="page page-wide">
+          <a [routerLink]="['/routes']" class="text-muted back">← К списку маршрутов</a>
 
-          <div class="layout">
-            <div class="list-panel card">
-              <div class="filters">
+          <div class="screen-card">
+            <div class="header">
+              <div>
+                <div class="eyebrow">Отрезок {{ segmentIndex() + 1 }} из {{ r.segments.length }}</div>
+                <h2>{{ seg.city }}</h2>
+                <div class="text-muted meta-row">
+                  <span>{{ seg.arrivalDate }} — {{ seg.departureDate }}</span>
+                  <span class="badge" [class.badge-accent]="seg.selectedPlaces.length > 0">
+                    Выбрано: {{ seg.selectedPlaces.length }}
+                  </span>
+                </div>
+              </div>
+              <div class="header-actions">
+                <button class="btn" [disabled]="segmentIndex() === 0" (click)="goTo(segmentIndex() - 1)">← Назад</button>
+                @if (isLastSegment()) {
+                  <button class="btn btn-primary" [disabled]="!canFinish() || generating()" (click)="finish()">
+                    {{ generating() ? 'Генерируем план…' : 'Сгенерировать план поездки' }}
+                  </button>
+                } @else {
+                  <button class="btn btn-primary" (click)="goTo(segmentIndex() + 1)">Далее →</button>
+                }
+              </div>
+            </div>
+
+            <div class="layout">
+              <div class="list-panel">
                 <input
-                  class="input"
+                  class="input search-input"
                   type="text"
-                  placeholder="Поиск по названию"
+                  [placeholder]="'Поиск мест в ' + seg.city + '…'"
                   [value]="searchText()"
                   (input)="searchText.set($any($event.target).value)"
                 />
-                <select class="input" [value]="categoryFilter() ?? ''" (change)="categoryFilter.set($any($event.target).value || null)">
-                  <option value="">Все категории</option>
+
+                <div class="pills">
+                  <div class="pill" [class.active]="categoryFilter() === null" (click)="categoryFilter.set(null)">Все</div>
                   @for (category of categories(); track category) {
-                    <option [value]="category">{{ category }}</option>
+                    <div class="pill" [class.active]="categoryFilter() === category" (click)="categoryFilter.set(category)">
+                      {{ category }}
+                    </div>
                   }
-                </select>
+                </div>
+
+                <div class="places-scroll">
+                  @if (loadingPlaces()) {
+                    <p class="text-muted">Загружаем достопримечательности…</p>
+                  } @else if (filteredPlaces().length === 0) {
+                    <p class="text-muted">Ничего не найдено рядом с этим городом.</p>
+                  } @else {
+                    @for (place of filteredPlaces(); track place.id) {
+                      <div class="place-row" [class.selected]="isSelected(place)" (click)="toggleSelect(place)">
+                        <div class="place-dot"></div>
+                        <div class="place-text">
+                          <div class="place-name">{{ place.name }}</div>
+                          <div class="text-muted place-category">{{ place.category }}</div>
+                        </div>
+                        <div class="place-check">{{ isSelected(place) ? '✓' : '' }}</div>
+                      </div>
+                    }
+                  }
+                </div>
               </div>
 
-              @if (loadingPlaces()) {
-                <p class="text-muted">Загружаем достопримечательности…</p>
-              } @else if (filteredPlaces().length === 0) {
-                <p class="text-muted">Ничего не найдено рядом с этим городом.</p>
-              } @else {
-                <ul class="places">
-                  @for (place of filteredPlaces(); track place.id) {
-                    <li [class.selected]="isSelected(place)" (click)="toggleSelect(place)">
-                      <div>
-                        <span class="place-name">{{ place.name }}</span>
-                        <span class="text-muted place-category">{{ place.category }}</span>
-                      </div>
-                      <span class="check">{{ isSelected(place) ? '✓' : '' }}</span>
-                    </li>
-                  }
-                </ul>
-              }
-            </div>
-
-            <div class="map-panel">
-              <div #mapContainer class="map"></div>
-              <p class="text-muted selected-count">Выбрано мест: {{ seg.selectedPlaces.length }}</p>
+              <div class="map-panel">
+                <div #mapContainer class="map"></div>
+              </div>
             </div>
           </div>
 
-          <div class="form-actions">
-            <button class="btn" [disabled]="segmentIndex() === 0" (click)="goTo(segmentIndex() - 1)">← Назад</button>
-            @if (isLastSegment()) {
-              <button class="btn btn-primary" [disabled]="!canFinish() || generating()" (click)="finish()">
-                {{ generating() ? 'Генерируем план…' : 'Сгенерировать план поездки' }}
-              </button>
-            } @else {
-              <button class="btn btn-primary" (click)="goTo(segmentIndex() + 1)">Далее →</button>
-            }
-          </div>
           @if (!canFinish() && isLastSegment()) {
             <p class="text-muted hint">Выберите хотя бы одно место в каждом отрезке маршрута.</p>
           }
@@ -104,37 +111,70 @@ const DEFAULT_ICON = L.divIcon({
     }
   `,
   styles: [`
-    .header { margin-bottom: 20px; }
-    .back { display: inline-block; margin-bottom: 12px; font-size: 14px; }
-    .title-row { display: flex; align-items: center; justify-content: space-between; }
-    .layout {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    .list-panel { display: flex; flex-direction: column; gap: 12px; max-height: 520px; overflow: hidden; }
-    .filters { display: flex; gap: 8px; }
-    .places { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-    .places li {
+    .back { display: inline-block; margin-bottom: 16px; font-size: 14px; }
+    .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      border: 1px solid transparent;
+      padding: 26px 40px;
+      border-bottom: 1px solid var(--color-border);
+      gap: 16px;
     }
-    .places li:hover { background: var(--color-bg); }
-    .places li.selected { background: #eff6ff; border-color: #bfdbfe; }
-    .place-name { display: block; font-size: 14px; font-weight: 500; }
-    .place-category { display: block; font-size: 12px; }
-    .check { color: var(--color-accent); font-weight: 700; }
-    .map-panel { display: flex; flex-direction: column; gap: 8px; }
-    .map { height: 480px; border-radius: var(--radius); border: 1px solid var(--color-border); }
-    .selected-count { font-size: 13px; }
-    .form-actions { display: flex; justify-content: space-between; }
-    .hint { margin-top: 8px; font-size: 13px; }
+    h2 { margin: 10px 0 6px; font-size: 26px; font-weight: 600; }
+    .meta-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .header-actions { display: flex; gap: 10px; flex-shrink: 0; }
+    .layout { display: grid; grid-template-columns: 400px 1fr; }
+    .list-panel {
+      border-right: 1px solid var(--color-border);
+      padding: 24px 24px 0;
+      display: flex;
+      flex-direction: column;
+      height: 560px;
+    }
+    .search-input { margin-bottom: 14px; }
+    .pills { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .places-scroll {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      flex: 1;
+      padding-bottom: 24px;
+    }
+    .place-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+    }
+    .place-row.selected {
+      background: var(--color-accent-tint);
+      border-color: var(--color-accent-border);
+    }
+    .place-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border-dashed); flex-shrink: 0; }
+    .place-row.selected .place-dot { background: var(--color-accent); }
+    .place-text { flex: 1; min-width: 0; }
+    .place-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .place-category { font-size: 12px; margin-top: 2px; }
+    .place-check {
+      width: 20px; height: 20px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      color: transparent;
+      border: 1.5px solid var(--color-border-soft);
+    }
+    .place-row.selected .place-check {
+      color: var(--color-bg);
+      background: var(--color-accent);
+      border: none;
+    }
+    .map-panel { position: relative; height: 560px; }
+    .map { height: 100%; width: 100%; }
+    .hint { margin-top: 12px; font-size: 13px; }
   `],
 })
 export class SegmentViewComponent implements AfterViewInit {

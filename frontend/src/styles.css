@@ -1,18 +1,30 @@
-/* Global minimalist design system */
+/* Design system — warm neutrals + green accent, per approved mockup */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --color-bg: #ffffff;
-  --color-surface: #fafafa;
-  --color-border: #e4e4e7;
-  --color-text: #18181b;
-  --color-text-muted: #71717a;
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
-  --color-danger: #dc2626;
-  --color-success: #16a34a;
-  --radius: 8px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --color-page: #edebe6;
+  --color-bg: #faf9f6;
+  --color-surface: #ffffff;
+  --color-input-bg: #fcfbf9;
+  --color-border: #e7e5df;
+  --color-border-soft: #dedcd5;
+  --color-border-dashed: #d3d1ca;
+  --color-text: #1c1c1a;
+  --color-text-muted: #8b8983;
+  --color-text-soft: #77756e;
+  --color-text-nav: #6b6a66;
+  --color-accent: #3b6e5e;
+  --color-accent-hover: #2f5a4c;
+  --color-accent-tint: #eaf1ec;
+  --color-accent-border: #b9d4c6;
+  --color-danger: #b5473f;
+  --color-danger-tint: #fbeeed;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --radius-pill: 100px;
+  --shadow-card: 0 20px 60px rgba(28, 28, 26, 0.08);
+  --shadow-sm: 0 1px 2px rgba(28, 28, 26, 0.04);
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
@@ -29,7 +41,7 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-page);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -57,16 +69,40 @@ a:hover {
   text-decoration: underline;
 }
 
+::selection {
+  background: var(--color-accent-border);
+}
+
 .page {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 32px 24px 64px;
+  max-width: 1080px;
+  margin: 40px auto 80px;
+  padding: 0 16px;
+}
+
+.page-wide {
+  max-width: 1280px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.screen-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
 
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   padding: 20px;
 }
 
@@ -75,13 +111,14 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  height: 40px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-soft);
   background: var(--color-bg);
   color: var(--color-text);
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
@@ -96,29 +133,57 @@ a:hover {
 }
 
 .btn-primary {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: #fff;
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-bg);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-  border-color: var(--color-accent-hover);
+  background: #000;
+  border-color: #000;
 }
 
 .btn-danger {
   color: var(--color-danger);
-  border-color: var(--color-border);
+  border-color: var(--color-border-soft);
 }
 
 .btn-danger:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--color-danger-tint);
+  border-color: #e3b9b5;
 }
 
 .btn-ghost {
   border-color: transparent;
   background: transparent;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-btn:hover {
+  background: var(--color-surface);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.icon-btn-danger {
+  color: var(--color-danger);
 }
 
 .field {
@@ -128,17 +193,17 @@ a:hover {
 }
 
 .field label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
 }
 
 .input {
-  height: 38px;
-  padding: 0 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-input-bg);
   color: var(--color-text);
 }
 
@@ -147,12 +212,33 @@ a:hover {
   border-color: var(--color-accent);
 }
 
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  white-space: nowrap;
+}
+
+.pill.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
   height: 22px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 500;
   background: var(--color-surface);
@@ -161,19 +247,23 @@ a:hover {
 }
 
 .badge-accent {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent-border);
   color: var(--color-accent);
 }
 
 .badge-success {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: var(--color-success);
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent);
 }
 
 .text-muted {
   color: var(--color-text-muted);
+}
+
+.text-soft {
+  color: var(--color-text-soft);
 }
 
 .toast {
@@ -182,9 +272,9 @@ a:hover {
   left: 50%;
   transform: translateX(-50%);
   background: var(--color-text);
-  color: #fff;
+  color: var(--color-bg);
   padding: 12px 18px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   font-size: 14px;
   box-shadow: var(--shadow-sm);
   z-index: 1000;
@@ -192,6 +282,7 @@ a:hover {
 
 .toast-error {
   background: var(--color-danger);
+  color: #fff;
 }
 
 .place-marker span {
@@ -206,4 +297,19 @@ a:hover {
 
 .place-marker-selected span {
   background: var(--color-accent);
+}
+
+.numbered-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }

@@ -7,72 +7,93 @@ import { RouteStorageService } from '../../core/services/route-storage.service';
 import { patchLeafletDefaultIcon } from '../../shared/leaflet-icon-fix';
 import { Place, PlanItem } from '../../shared/models/route.model';
 
+function numberedIcon(n: number): L.DivIcon {
+  return L.divIcon({
+    className: 'numbered-marker',
+    html: `${n}`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
 @Component({
   selector: 'app-plan-view',
   imports: [RouterLink],
   template: `
     @if (route(); as r) {
-      <div class="page">
-        <header class="header">
-          <a routerLink="/routes" class="text-muted back">← К списку маршрутов</a>
-          <div class="title-row">
-            <h1>{{ r.title }}</h1>
-            <button class="btn btn-primary" (click)="downloadPdf()" [disabled]="exporting()">
-              {{ exporting() ? 'Экспортируем…' : 'Скачать PDF-отчёт' }}
+      <div class="page page-wide">
+        <a routerLink="/routes" class="text-muted back">← К списку маршрутов</a>
+
+        <div class="screen-card">
+          <div class="header">
+            <div>
+              <div class="eyebrow">Готовый план</div>
+              <h2>{{ r.title }}</h2>
+              <p class="text-muted city-chain">{{ cityChain() }}</p>
+            </div>
+            <button class="btn" (click)="downloadPdf()" [disabled]="exporting()">
+              ⬇ {{ exporting() ? 'Экспортируем…' : 'Скачать PDF-отчёт' }}
             </button>
           </div>
-        </header>
 
-        <div class="segment-tabs">
-          @for (segment of r.segments; track segment.id; let i = $index) {
-            <button
-              class="tab"
-              [class.active]="i === activeSegmentIndex()"
-              (click)="selectSegment(i)"
-            >
-              {{ segment.city }}
-            </button>
-          }
-        </div>
-
-        @if (activeSegment(); as seg) {
-          <p class="text-muted dates">{{ seg.arrivalDate }} — {{ seg.departureDate }}</p>
-
-          <div class="day-tabs">
-            @for (day of seg.dailyPlan; track day.date; let i = $index) {
-              <button class="tab day-tab" [class.active]="i === activeDayIndex()" (click)="activeDayIndex.set(i)">
-                День {{ i + 1 }}
+          <div class="segment-tabs">
+            @for (segment of r.segments; track segment.id; let i = $index) {
+              <button
+                class="seg-tab"
+                [class.active]="i === activeSegmentIndex()"
+                (click)="selectSegment(i)"
+              >
+                {{ segment.city }}
               </button>
+            }
+          </div>
+
+          <div class="day-tabs-row">
+            @if (activeSegment(); as seg) {
+              @for (day of seg.dailyPlan; track day.date; let i = $index) {
+                <button class="pill day-pill" [class.active]="i === activeDayIndex()" (click)="activeDayIndex.set(i)">
+                  День {{ i + 1 }}
+                </button>
+              }
             }
           </div>
 
           @if (activeDay(); as day) {
             <div class="layout">
-              <div class="card list-panel">
-                <h3 class="day-date">{{ day.date }}</h3>
-                <ol class="items">
-                  @for (item of day.items; track item.placeId) {
-                    <li>
+              <div class="list-panel">
+                @for (item of day.items; track item.placeId; let last = $last) {
+                  <div class="timeline-row">
+                    <div class="timeline">
+                      <div class="dot"></div>
+                      <div class="connector" [class.hidden]="last"></div>
+                    </div>
+                    <div class="item-card">
                       <div class="item-main">
                         <span class="item-name">{{ placeName(item.placeId) }}</span>
                         @if (item.suggestedArrivalTime) {
-                          <span class="badge">{{ item.suggestedArrivalTime }}</span>
+                          <span class="item-time">{{ item.suggestedArrivalTime }}</span>
                         }
                       </div>
-                      @if (item.suggestedDurationMinutes) {
-                        <p class="text-muted item-detail">~{{ item.suggestedDurationMinutes }} мин на месте</p>
-                      }
+                      <div class="text-muted item-detail">
+                        @if (item.suggestedDurationMinutes) {
+                          <span>~{{ item.suggestedDurationMinutes }} мин</span>
+                        }
+                        <span>{{ placeCategory(item.placeId) }}</span>
+                      </div>
                       @if (item.travelNoteToNext) {
-                        <p class="text-muted item-detail">→ {{ item.travelNoteToNext }}</p>
+                        <div class="item-note">→ {{ item.travelNoteToNext }}</div>
                       }
-                    </li>
-                  }
-                </ol>
+                    </div>
+                  </div>
+                }
               </div>
-              <div #mapContainer class="map"></div>
+
+              <div class="map-panel">
+                <div #mapContainer class="map"></div>
+              </div>
             </div>
           }
-        }
+        </div>
 
         @if (message(); as m) {
           <div class="toast" [class.toast-error]="m.error">{{ m.text }}</div>
@@ -83,31 +104,78 @@ import { Place, PlanItem } from '../../shared/models/route.model';
     }
   `,
   styles: [`
-    .header { margin-bottom: 16px; }
-    .back { display: inline-block; margin-bottom: 12px; font-size: 14px; }
-    .title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .segment-tabs, .day-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
-    .tab {
-      height: 34px;
-      padding: 0 14px;
-      border-radius: 999px;
-      border: 1px solid var(--color-border);
-      background: var(--color-bg);
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
+    .back { display: inline-block; margin-bottom: 16px; font-size: 14px; }
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 26px 40px 0;
+      gap: 16px;
     }
-    .tab.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
-    .day-tab { height: 30px; padding: 0 12px; }
-    .dates { margin-bottom: 16px; }
-    .layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; }
-    .list-panel { max-height: 480px; overflow-y: auto; }
-    .day-date { margin-bottom: 12px; }
-    .items { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 14px; }
-    .item-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .item-name { font-weight: 500; font-size: 14px; }
-    .item-detail { font-size: 12px; margin-top: 2px; }
-    .map { height: 480px; border-radius: var(--radius); border: 1px solid var(--color-border); }
+    h2 { margin: 0; font-size: 26px; font-weight: 600; }
+    .city-chain { margin-top: 4px; font-size: 13px; }
+    .segment-tabs { display: flex; gap: 8px; padding: 22px 40px 0; }
+    .seg-tab {
+      padding: 10px 18px;
+      border-radius: 10px 10px 0 0;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+    }
+    .seg-tab.active {
+      color: var(--color-text);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-bottom-color: var(--color-surface);
+    }
+    .day-tabs-row {
+      padding: 18px 40px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .day-pill {
+      background: var(--color-page);
+      border-color: transparent;
+      color: var(--color-text-muted);
+    }
+    .day-pill.active {
+      background: var(--color-accent-tint);
+      color: var(--color-accent);
+      border-color: var(--color-accent-tint);
+    }
+    .layout { display: grid; grid-template-columns: 1fr 460px; }
+    .list-panel { padding: 24px 40px; display: flex; flex-direction: column; gap: 0; }
+    .timeline-row { display: flex; gap: 16px; align-items: flex-start; }
+    .timeline { display: flex; flex-direction: column; align-items: center; padding-top: 2px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
+    .connector { width: 1.5px; flex: 1; background: var(--color-border-soft); min-height: 36px; }
+    .connector.hidden { background: transparent; }
+    .item-card {
+      flex: 1;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      margin: 0 0 12px;
+    }
+    .item-main { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .item-name { font-size: 15px; font-weight: 600; }
+    .item-time { font-size: 13px; color: var(--color-accent); font-weight: 600; white-space: nowrap; }
+    .item-detail { font-size: 13px; margin-top: 4px; display: flex; gap: 6px; }
+    .item-detail span:not(:last-child)::after { content: '·'; margin-left: 6px; }
+    .item-note {
+      font-size: 12.5px;
+      color: var(--color-text-soft);
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--color-border);
+    }
+    .map-panel { padding: 24px 40px 24px 0; }
+    .map { height: 100%; min-height: 420px; border-radius: var(--radius-md); overflow: hidden; }
   `],
 })
 export class PlanViewComponent implements AfterViewInit {
@@ -121,6 +189,7 @@ export class PlanViewComponent implements AfterViewInit {
   private readonly params = toSignal(this.route$.paramMap, { initialValue: this.route$.snapshot.paramMap });
   protected readonly routeId = computed(() => this.params()?.get('routeId') ?? '');
   protected readonly route = computed(() => this.storage.getRoute(this.routeId()));
+  protected readonly cityChain = computed(() => this.route()?.segments.map((s) => s.city).join(' → ') ?? '');
 
   protected readonly activeSegmentIndex = signal(0);
   protected readonly activeDayIndex = signal(0);
@@ -175,13 +244,13 @@ export class PlanViewComponent implements AfterViewInit {
       if (!place) return;
       const point: L.LatLngExpression = [place.coordinates.lat, place.coordinates.lng];
       points.push(point);
-      L.marker(point)
+      L.marker(point, { icon: numberedIcon(index + 1) })
         .addTo(this.layer!)
         .bindTooltip(`${index + 1}. ${place.name}`);
     });
 
     if (points.length > 1) {
-      L.polyline(points, { color: '#2563eb', weight: 3 }).addTo(this.layer);
+      L.polyline(points, { color: '#3b6e5e', weight: 3, dashArray: '7 6' }).addTo(this.layer);
     }
     if (points.length > 0) {
       this.map.fitBounds(L.latLngBounds(points), { padding: [32, 32] });
@@ -190,6 +259,10 @@ export class PlanViewComponent implements AfterViewInit {
 
   protected placeName(placeId: string): string {
     return this.placeLookup().get(placeId)?.name ?? placeId;
+  }
+
+  protected placeCategory(placeId: string): string {
+    return this.placeLookup().get(placeId)?.category ?? '';
   }
 
   protected selectSegment(index: number): void {

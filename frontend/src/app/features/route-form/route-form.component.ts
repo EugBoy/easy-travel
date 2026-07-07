@@ -10,100 +10,151 @@ import {
   segmentSequenceValidator,
 } from '../../shared/validators/route-form.validators';
 
+function pluralizeRu(count: number, [one, few, many]: [string, string, string]): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
 @Component({
   selector: 'app-route-form',
   imports: [ReactiveFormsModule, RouterLink, CityAutocompleteComponent],
   template: `
     <div class="page">
-      <header class="header">
-        <a routerLink="/routes" class="text-muted back">← К списку маршрутов</a>
-        <h1>Новый маршрут</h1>
-      </header>
+      <a routerLink="/routes" class="text-muted back">← К списку маршрутов</a>
 
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <div class="field title-field">
-          <label>Название поездки</label>
-          <input class="input" type="text" formControlName="title" placeholder="Например, Отпуск в Португалии" />
+      <div class="screen-card">
+        <div class="card-top">
+          <div class="eyebrow">Новый маршрут</div>
+          <h1>Соберите план поездки по городам</h1>
+          <p class="subtitle text-soft">
+            Добавьте города, которые хотите посетить, и даты пребывания в каждом. Порядок отрезков определяет маршрут путешествия.
+          </p>
         </div>
 
-        <div class="segments" formArrayName="segments">
-          @for (segment of segments.controls; track segment; let i = $index) {
-            <div class="card segment" [formGroupName]="i">
-              <div class="segment-header">
-                <span class="badge">Отрезок {{ i + 1 }}</span>
-                @if (segments.length > 1) {
-                  <button type="button" class="btn btn-ghost btn-danger" (click)="removeSegment(i)">Удалить</button>
-                }
-              </div>
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <div class="card-body">
+            <div class="field title-field">
+              <label>Название поездки</label>
+              <input class="input" type="text" formControlName="title" placeholder="Например, Отпуск в Португалии" />
+            </div>
 
-              <app-city-autocomplete
-                [initialValue]="segment.get('city')?.value"
-                (selected)="onCitySelected(i, $event)"
-                (cleared)="onCityCleared(i)"
-              />
-              @if (submitted && segment.hasError('citySelected')) {
-                <p class="error">Выберите город из списка предложений</p>
-              }
+            <div class="segments" formArrayName="segments">
+              @for (segment of segments.controls; track segment; let i = $index) {
+                <div class="segment-row">
+                  <div [formGroupName]="i" class="segment-main">
+                    <div class="timeline">
+                      <div class="num-circle">{{ i + 1 }}</div>
+                      <div class="connector"></div>
+                    </div>
 
-              <div class="dates">
-                <div class="field">
-                  <label>Дата прибытия</label>
-                  <input class="input" type="date" formControlName="arrivalDate" />
+                    <div class="segment-grid">
+                      <app-city-autocomplete
+                        [initialValue]="segment.get('city')?.value"
+                        (selected)="onCitySelected(i, $event)"
+                        (cleared)="onCityCleared(i)"
+                      />
+                      <div class="field">
+                        <label>Прибытие</label>
+                        <input class="input" type="date" formControlName="arrivalDate" />
+                      </div>
+                      <div class="field">
+                        <label>Отъезд</label>
+                        <input class="input" type="date" formControlName="departureDate" />
+                      </div>
+                    </div>
+
+                    <div class="row-actions">
+                      <button type="button" class="icon-btn" [disabled]="i === 0" (click)="moveUp(i)" aria-label="Переместить вверх">↑</button>
+                      <button type="button" class="icon-btn" [disabled]="i === segments.length - 1" (click)="moveDown(i)" aria-label="Переместить вниз">↓</button>
+                      <button type="button" class="icon-btn icon-btn-danger" [disabled]="segments.length === 1" (click)="removeSegment(i)" aria-label="Удалить">✕</button>
+                    </div>
+                  </div>
+
+                  @if (submitted && segment.hasError('citySelected')) {
+                    <p class="error">Выберите город из списка предложений</p>
+                  }
+                  @if (submitted && segment.hasError('arrivalAfterDeparture')) {
+                    <p class="error">Дата отъезда должна быть не раньше даты прибытия</p>
+                  }
+                  @if (submitted && segments.hasError('sequenceBroken') && segments.errors?.['sequenceBroken'] === i) {
+                    <p class="error">Дата прибытия не может быть раньше даты отъезда предыдущего отрезка</p>
+                  }
                 </div>
-                <div class="field">
-                  <label>Дата отъезда</label>
-                  <input class="input" type="date" formControlName="departureDate" />
-                </div>
-              </div>
-              @if (submitted && segment.hasError('arrivalAfterDeparture')) {
-                <p class="error">Дата отъезда должна быть не раньше даты прибытия</p>
-              }
-              @if (submitted && segments.hasError('sequenceBroken') && segments.errors?.['sequenceBroken'] === i) {
-                <p class="error">Дата прибытия не может быть раньше даты отъезда предыдущего отрезка</p>
               }
             </div>
-          }
-        </div>
 
-        <div class="form-actions">
-          <button type="button" class="btn" (click)="addSegment()">+ Добавить город</button>
-          <button type="submit" class="btn btn-primary">Создать маршрут</button>
-        </div>
-      </form>
+            <div class="add-city" (click)="addSegment()">
+              <span class="plus">+</span> Добавить город
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="text-muted footer-info">
+              {{ segments.length }} {{ segmentWord() }} маршрута · {{ totalNights() }} {{ nightsWord() }} всего
+            </div>
+            <button type="submit" class="btn btn-primary">Создать маршрут →</button>
+          </div>
+        </form>
+      </div>
     </div>
   `,
   styles: [`
-    .header { margin-bottom: 24px; }
-    .back { display: inline-block; margin-bottom: 12px; font-size: 14px; }
-    .title-field { margin-bottom: 24px; }
-    .segments {
+    .back { display: inline-block; margin-bottom: 16px; font-size: 14px; }
+    .card-top { padding: 40px 48px 8px; }
+    h1 { margin: 10px 0 6px; font-size: 34px; font-weight: 600; letter-spacing: -0.01em; }
+    .subtitle { margin: 0 0 32px; font-size: 15px; line-height: 1.5; max-width: 560px; }
+    .card-body { padding: 0 48px 40px; display: flex; flex-direction: column; gap: 14px; }
+    .title-field { margin-bottom: 6px; }
+    .segments { display: flex; flex-direction: column; gap: 14px; }
+    .segment-row { display: flex; flex-direction: column; gap: 6px; }
+    .segment-main {
       display: flex;
-      flex-direction: column;
+      align-items: flex-start;
       gap: 16px;
-      margin-bottom: 20px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
     }
-    .segment {
+    .timeline { display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 4px; align-self: stretch; }
+    .num-circle {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--color-text); color: var(--color-bg);
+      font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .connector { width: 1px; flex: 1; background: var(--color-border); }
+    .segment-grid { flex: 1; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; min-width: 0; }
+    .row-actions { display: flex; gap: 6px; padding-top: 26px; }
+    .error { color: var(--color-danger); font-size: 13px; padding-left: 4px; }
+    .add-city {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
+      align-items: center;
+      gap: 10px;
+      border: 1.5px dashed var(--color-border-dashed);
+      border-radius: var(--radius-md);
+      padding: 16px 22px;
+      color: var(--color-accent);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
     }
-    .segment-header {
+    .plus { font-size: 18px; line-height: 1; }
+    .card-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 24px 48px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-page);
     }
-    .dates {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .error {
-      color: var(--color-danger);
-      font-size: 13px;
-    }
-    .form-actions {
-      display: flex;
-      justify-content: space-between;
+    .footer-info { font-size: 13px; }
+    @media (max-width: 720px) {
+      .segment-grid { grid-template-columns: 1fr; }
     }
   `],
 })
@@ -145,6 +196,23 @@ export class RouteFormComponent {
     this.segments.removeAt(index);
   }
 
+  protected moveUp(index: number): void {
+    if (index === 0) return;
+    this.swapSegments(index, index - 1);
+  }
+
+  protected moveDown(index: number): void {
+    if (index === this.segments.length - 1) return;
+    this.swapSegments(index, index + 1);
+  }
+
+  private swapSegments(i: number, j: number): void {
+    const a = this.segments.at(i).value;
+    const b = this.segments.at(j).value;
+    this.segments.at(i).patchValue(b);
+    this.segments.at(j).patchValue(a);
+  }
+
   protected onCitySelected(index: number, city: CitySearchResult): void {
     this.segments.at(index).patchValue({
       city: city.name,
@@ -156,6 +224,24 @@ export class RouteFormComponent {
 
   protected onCityCleared(index: number): void {
     this.segments.at(index).patchValue({ lat: null, lng: null });
+  }
+
+  protected totalNights(): number {
+    return this.segments.controls.reduce((sum, ctrl) => {
+      const arrival = ctrl.get('arrivalDate')?.value;
+      const departure = ctrl.get('departureDate')?.value;
+      if (!arrival || !departure) return sum;
+      const diff = Math.round((new Date(departure).getTime() - new Date(arrival).getTime()) / 86_400_000);
+      return sum + Math.max(0, diff);
+    }, 0);
+  }
+
+  protected segmentWord(): string {
+    return pluralizeRu(this.segments.length, ['отрезок', 'отрезка', 'отрезков']);
+  }
+
+  protected nightsWord(): string {
+    return pluralizeRu(this.totalNights(), ['ночь', 'ночи', 'ночей']);
   }
 
   protected submit(): void {
