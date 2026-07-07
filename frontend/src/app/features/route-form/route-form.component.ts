@@ -181,6 +181,10 @@ export class RouteFormComponent {
         countryCode: [null],
         lat: [null],
         lng: [null],
+        bboxSouth: [null],
+        bboxNorth: [null],
+        bboxWest: [null],
+        bboxEast: [null],
         arrivalDate: ['', Validators.required],
         departureDate: ['', Validators.required],
       },
@@ -219,11 +223,22 @@ export class RouteFormComponent {
       countryCode: city.countryCode ?? null,
       lat: city.coordinates.lat,
       lng: city.coordinates.lng,
+      bboxSouth: city.boundingBox?.south ?? null,
+      bboxNorth: city.boundingBox?.north ?? null,
+      bboxWest: city.boundingBox?.west ?? null,
+      bboxEast: city.boundingBox?.east ?? null,
     });
   }
 
   protected onCityCleared(index: number): void {
-    this.segments.at(index).patchValue({ lat: null, lng: null });
+    this.segments.at(index).patchValue({
+      lat: null,
+      lng: null,
+      bboxSouth: null,
+      bboxNorth: null,
+      bboxWest: null,
+      bboxEast: null,
+    });
   }
 
   protected totalNights(): number {
@@ -257,6 +272,10 @@ export class RouteFormComponent {
       countryCode: string | null;
       lat: number;
       lng: number;
+      bboxSouth: number | null;
+      bboxNorth: number | null;
+      bboxWest: number | null;
+      bboxEast: number | null;
       arrivalDate: string;
       departureDate: string;
     }[]).map((segment, order) => ({
@@ -264,6 +283,10 @@ export class RouteFormComponent {
       city: segment.city,
       countryCode: segment.countryCode ?? undefined,
       coordinates: { lat: segment.lat, lng: segment.lng },
+      boundingBox:
+        segment.bboxSouth != null && segment.bboxNorth != null && segment.bboxWest != null && segment.bboxEast != null
+          ? { south: segment.bboxSouth, north: segment.bboxNorth, west: segment.bboxWest, east: segment.bboxEast }
+          : undefined,
       arrivalDate: segment.arrivalDate,
       departureDate: segment.departureDate,
     }));

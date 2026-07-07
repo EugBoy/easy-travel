@@ -5,6 +5,13 @@ export const coordinatesSchema = z.object({
   lng: z.number(),
 });
 
+export const boundingBoxSchema = z.object({
+  south: z.number(),
+  north: z.number(),
+  west: z.number(),
+  east: z.number(),
+});
+
 export const placeSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -20,6 +27,7 @@ export const routeSegmentInputSchema = z.object({
   city: z.string(),
   countryCode: z.string().optional(),
   coordinates: coordinatesSchema,
+  boundingBox: boundingBoxSchema.optional(),
   arrivalDate: z.string(),
   departureDate: z.string(),
   selectedPlaces: z.array(placeSchema),
@@ -34,8 +42,13 @@ const languageSchema = z.enum(['ru', 'en']).default('en');
 export const nearbyPlacesQuerySchema = z.object({
   lat: z.coerce.number(),
   lng: z.coerce.number(),
-  radius: z.coerce.number().positive().max(20000).default(1500),
+  radius: z.coerce.number().positive().max(50000).default(5000),
   lang: languageSchema,
+  south: z.coerce.number().optional(),
+  north: z.coerce.number().optional(),
+  west: z.coerce.number().optional(),
+  east: z.coerce.number().optional(),
+  query: z.string().min(1).optional(),
 });
 
 export const citySearchQuerySchema = z.object({

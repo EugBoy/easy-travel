@@ -12,8 +12,11 @@ export function createPlacesRouter(placesProvider: PlacesProvider): Router {
       return;
     }
     try {
-      const { lat, lng, radius, lang } = parsed.data;
-      const places = await placesProvider.getNearbyPlaces(lat, lng, radius, lang);
+      const { lat, lng, radius, lang, south, north, west, east, query } = parsed.data;
+      const boundingBox = south != null && north != null && west != null && east != null
+        ? { south, north, west, east }
+        : undefined;
+      const places = await placesProvider.getNearbyPlaces({ lat, lng, radius, lang, boundingBox, nameQuery: query });
       res.json({ places });
     } catch (error) {
       res.status(502).json({ message: (error as Error).message });

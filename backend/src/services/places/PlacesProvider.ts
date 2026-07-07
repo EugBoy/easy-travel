@@ -1,6 +1,15 @@
-import { AppLanguage, CitySearchResult, Place } from '../../models/types';
+import { AppLanguage, BoundingBox, CitySearchResult, Place } from '../../models/types';
+
+export interface NearbyPlacesQuery {
+  lat: number;
+  lng: number;
+  radius: number;
+  lang: AppLanguage;
+  boundingBox?: BoundingBox;
+  nameQuery?: string;
+}
 
 export interface PlacesProvider {
   searchCities(query: string, lang: AppLanguage): Promise<CitySearchResult[]>;
-  getNearbyPlaces(lat: number, lng: number, radius: number, lang: AppLanguage): Promise<Place[]>;
+  getNearbyPlaces(query: NearbyPlacesQuery): Promise<Place[]>;
 }

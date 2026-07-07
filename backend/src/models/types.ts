@@ -5,6 +5,13 @@ export interface Coordinates {
   lng: number;
 }
 
+export interface BoundingBox {
+  south: number;
+  north: number;
+  west: number;
+  east: number;
+}
+
 export type PlaceSource = 'overpass' | 'manual';
 
 export interface Place {
@@ -21,6 +28,7 @@ export interface CitySearchResult {
   countryCode?: string;
   displayName: string;
   coordinates: Coordinates;
+  boundingBox?: BoundingBox;
 }
 
 export interface PlanItem {
@@ -42,6 +50,7 @@ export interface RouteSegmentInput {
   city: string;
   countryCode?: string;
   coordinates: Coordinates;
+  boundingBox?: BoundingBox;
   arrivalDate: string;
   departureDate: string;
   selectedPlaces: Place[];
@@ -69,6 +78,7 @@ export interface RouteSegment {
   city: string;
   countryCode?: string;
   coordinates: Coordinates;
+  boundingBox?: BoundingBox;
   arrivalDate: string;
   departureDate: string;
   selectedPlaces: Place[];

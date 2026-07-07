@@ -69,7 +69,7 @@ function numberedIcon(n: number): L.DivIcon {
                     </div>
                     <div class="item-card">
                       <div class="item-main">
-                        <span class="item-name">{{ placeName(item.placeId) }}</span>
+                        <span class="item-name" [title]="placeName(item.placeId)">{{ placeName(item.placeId) }}</span>
                         @if (item.suggestedArrivalTime) {
                           <span class="item-time">{{ item.suggestedArrivalTime }}</span>
                         }

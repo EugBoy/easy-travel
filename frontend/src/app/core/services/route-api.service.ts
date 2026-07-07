@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config';
-import { CitySearchResult, DailyPlan, Place, Route, RouteSegment } from '../../shared/models/route.model';
+import { BoundingBox, CitySearchResult, DailyPlan, Place, Route, RouteSegment } from '../../shared/models/route.model';
 import { LanguageService } from './language.service';
 
 export interface GeneratePlanSegmentResult {
@@ -16,6 +16,14 @@ export interface GeneratePlanResponse {
   warnings?: string[];
 }
 
+export interface NearbyPlacesRequest {
+  lat: number;
+  lng: number;
+  boundingBox?: BoundingBox;
+  /** Substring to match against place names, in addition to the geo filter. */
+  query?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RouteApiService {
   private readonly http = inject(HttpClient);
@@ -27,10 +35,18 @@ export class RouteApiService {
     });
   }
 
-  getNearbyPlaces(lat: number, lng: number, radius = 1500): Observable<{ places: Place[] }> {
-    return this.http.get<{ places: Place[] }>(`${API_BASE_URL}/places`, {
-      params: { lat, lng, radius, lang: this.language.lang() },
-    });
+  getNearbyPlaces({ lat, lng, boundingBox, query }: NearbyPlacesRequest): Observable<{ places: Place[] }> {
+    const params: Record<string, string | number> = { lat, lng, lang: this.language.lang() };
+    if (boundingBox) {
+      params['south'] = boundingBox.south;
+      params['north'] = boundingBox.north;
+      params['west'] = boundingBox.west;
+      params['east'] = boundingBox.east;
+    }
+    if (query) {
+      params['query'] = query;
+    }
+    return this.http.get<{ places: Place[] }>(`${API_BASE_URL}/places`, { params });
   }
 
   generatePlan(segments: RouteSegment[]): Observable<GeneratePlanResponse> {

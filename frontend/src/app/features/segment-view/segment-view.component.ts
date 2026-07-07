@@ -1,7 +1,8 @@
 import { AfterViewInit, Component, ElementRef, Injector, ViewChild, computed, effect, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
+import { EMPTY, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { RouteApiService } from '../../core/services/route-api.service';
 import { RouteStorageService } from '../../core/services/route-storage.service';
 import { LanguageService } from '../../core/services/language.service';
@@ -62,6 +63,9 @@ const DEFAULT_ICON = L.divIcon({
                   [value]="searchText()"
                   (input)="searchText.set($any($event.target).value)"
                 />
+                @if (searchingMore()) {
+                  <span class="text-muted search-hint">Ищём ещё варианты…</span>
+                }
 
                 <div class="pills">
                   <div class="pill" [class.active]="categoryFilter() === null" (click)="categoryFilter.set(null)">Все</div>
@@ -82,7 +86,7 @@ const DEFAULT_ICON = L.divIcon({
                       <div class="place-row" [class.selected]="isSelected(place)" (click)="toggleSelect(place)">
                         <div class="place-dot"></div>
                         <div class="place-text">
-                          <div class="place-name">{{ place.name }}</div>
+                          <div class="place-name" [title]="place.name">{{ place.name }}</div>
                           <div class="text-muted place-category">{{ place.category }}</div>
                         </div>
                         <div class="place-check">{{ isSelected(place) ? '✓' : '' }}</div>
@@ -131,7 +135,8 @@ const DEFAULT_ICON = L.divIcon({
       flex-direction: column;
       height: 560px;
     }
-    .search-input { margin-bottom: 14px; }
+    .search-input { margin-bottom: 6px; }
+    .search-hint { display: block; font-size: 12px; margin-bottom: 10px; }
     .pills { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .places-scroll {
       display: flex;
@@ -205,15 +210,24 @@ export class SegmentViewComponent implements AfterViewInit {
 
   private readonly placesCache = signal<Record<string, Place[]>>({});
   protected readonly loadingPlaces = signal(false);
+  protected readonly searchingMore = signal(false);
   protected readonly generating = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly searchText = signal('');
   protected readonly categoryFilter = signal<string | null>(null);
 
+  /** Cache pool merged with the segment's already-selected places, so a selection never disappears
+   *  from the list/map even if it falls outside the current cache batch (e.g. after a language switch). */
   private readonly allPlacesForSegment = computed(() => {
     const seg = this.segment();
-    return seg ? (this.placesCache()[`${seg.id}:${this.language.lang()}`] ?? []) : [];
+    if (!seg) return [];
+    const pool = this.placesCache()[`${seg.id}:${this.language.lang()}`] ?? [];
+    const byId = new Map(pool.map((p) => [p.id, p]));
+    for (const place of seg.selectedPlaces) {
+      if (!byId.has(place.id)) byId.set(place.id, place);
+    }
+    return Array.from(byId.values());
   });
 
   protected readonly categories = computed(() =>
@@ -242,7 +256,7 @@ export class SegmentViewComponent implements AfterViewInit {
       const cacheKey = seg ? `${seg.id}:${lang}` : undefined;
       if (!seg || !cacheKey || this.placesCache()[cacheKey]) return;
       this.loadingPlaces.set(true);
-      this.api.getNearbyPlaces(seg.coordinates.lat, seg.coordinates.lng).subscribe({
+      this.api.getNearbyPlaces({ lat: seg.coordinates.lat, lng: seg.coordinates.lng, boundingBox: seg.boundingBox }).subscribe({
         next: ({ places }) => {
           this.placesCache.update((cache) => ({ ...cache, [cacheKey]: places }));
           this.loadingPlaces.set(false);
@@ -253,6 +267,42 @@ export class SegmentViewComponent implements AfterViewInit {
         },
       });
     });
+
+    // Type-ahead: as the user types a name, ask the backend for matches beyond the initial batch
+    // and merge them into the cache (never replace) so earlier results stay put.
+    toObservable(computed(() => ({
+      seg: this.segment(),
+      lang: this.language.lang(),
+      text: this.searchText().trim(),
+    })))
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged(
+          (a, b) => a.seg?.id === b.seg?.id && a.lang === b.lang && a.text === b.text,
+        ),
+        switchMap(({ seg, lang, text }) => {
+          if (!seg || text.length < 2) return EMPTY;
+          this.searchingMore.set(true);
+          const cacheKey = `${seg.id}:${lang}`;
+          return this.api
+            .getNearbyPlaces({ lat: seg.coordinates.lat, lng: seg.coordinates.lng, boundingBox: seg.boundingBox, query: text })
+            .pipe(map(({ places }) => ({ cacheKey, places })));
+        }),
+      )
+      .subscribe({
+        next: ({ cacheKey, places }) => {
+          this.searchingMore.set(false);
+          this.placesCache.update((cache) => {
+            const existing = cache[cacheKey] ?? [];
+            const byId = new Map(existing.map((p) => [p.id, p]));
+            for (const place of places) byId.set(place.id, place);
+            return { ...cache, [cacheKey]: Array.from(byId.values()) };
+          });
+        },
+        error: () => {
+          this.searchingMore.set(false);
+        },
+      });
   }
 
   ngAfterViewInit(): void {
